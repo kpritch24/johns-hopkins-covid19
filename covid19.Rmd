@@ -1,9 +1,14 @@
 ---
 title: "Johns Hopkins COVID 19 Report"
-author: "Kurtis Pritchard"
-date: "2024-08-10"
+subtitle: "DTSA 5301 Data Science as a Field"
+author: "MS Data Science, University of Colorado Boulder"
+date: "2024-08-20"
 output: pdf_document
 ---
+
+# Setup Knit Options
+
+echo = true will display code chunks in the output
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -28,6 +33,8 @@ library(ROSE)
 
 # Read Datasets
 
+Download COVID 19 data from Johns Hopkins University, for US and Global cases and deaths.
+
 ```{r import_data}
 url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv"
 us_cases <- read_csv(url)
@@ -44,23 +51,36 @@ global_deaths <- read_csv(url)
 
 # Inspect Data
 
+Here we can see the first 5 rows of the data and can page to the right to see all the columns. 
+We start with inspecting us cases.
+
 ```{r}
 head(us_cases)
 ```
+
+Next we inspect us deaths.
 
 ```{r}
 head(us_deaths)
 ```
 
+Next we inspect global cases.
+
 ```{r}
 head(global_cases)
 ```
+
+Next we inspect global deaths.
 
 ```{r}
 head(global_deaths)
 ```
 
 # pivot data
+
+Next we will pivot the data to make it easier to work with.
+This will transform the data from wide to long format.
+We start with us cases.
 
 ```{r}
 # pivot us cases
@@ -70,6 +90,8 @@ us_cases <- us_cases %>%
 us_cases
 ```
 
+We do the same for us deaths.
+
 ```{r}
 # pivot us deaths
 us_deaths <- us_deaths %>%
@@ -78,6 +100,8 @@ us_deaths <- us_deaths %>%
 us_deaths
 ```
 
+We do the same for global cases.
+
 ```{r}
 # pivot global cases
 global_cases <- global_cases %>%
@@ -85,6 +109,8 @@ global_cases <- global_cases %>%
   select(-c(Lat, Long))
 global_cases
 ```
+
+We do the same for global deaths.
 
 ```{r}
 # pivot global deaths
@@ -96,6 +122,13 @@ global_deaths
 
 # combine cases and deaths, rename columns, convert dates
 
+Next we will combine cases and deaths, rename columns, and convert dates.
+We can combine the us cases and deaths because they have columns in common to match on.
+Then we rename the column "Admin2" to "City" to be more descriptive and match the global data.
+Then we convert the date column to a date object.
+Finally we select the columns we want to keep.
+We will start with the us data.
+
 ```{r}
 us <- us_cases %>%
   full_join(us_deaths) %>%
@@ -104,6 +137,12 @@ us <- us_cases %>%
   select("City", "Province_State", "Country_Region", "date", "cases", "deaths", "Population", "Combined_Key")
 us
 ```
+
+Next we do the same for the global data.
+We first combine the global cases with deaths.
+Then we rename the columns to match the us data.
+Then we convert the date column to a date object.
+Finally we select the columns we want to keep.
 
 ```{r}
 global <- global_cases %>%
@@ -115,9 +154,16 @@ global
 
 # Summary Data
 
+Next we will summarize the data to see the number of cases and deaths.
+If the features are numeric we get the mean, median, min, max, and quartiles.
+If the features are categorical we get the count of each category.
+We start with the us data.
+
 ```{r}
 summary(us)
 ```
+
+Next we summarize the global data.
 
 ```{r}
 summary(global)
@@ -125,10 +171,15 @@ summary(global)
 
 # Filter Data
 
+Next we will filter the data to remove rows where cases are 0.
+We start with the us data.
+
 ```{r}
 us <- us %>% dplyr::filter(cases > 0)
 summary(us)
 ```
+
+Next we filter the global data.
 
 ```{r}
 global <- global %>% dplyr::filter(cases > 0)
@@ -136,6 +187,9 @@ summary(global)
 ```
 
 # Create Combined Key
+
+Next we will create a combined key to uniquely identify each row.
+We will combine the "Province_State" and "Country_Region" columns to match the us data.
 
 ```{r}
 global <- global %>%
@@ -145,12 +199,17 @@ global
 
 # Fetch Population
 
+Next we will fetch the population data from the UID_ISO_FIPS_LookUp_Table.
+We will join the population data to the global data only because the us data already has the population data.
+
 ```{r}
 url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv"
 uid <- read_csv(url) %>%
   select(-c(Lat, Long_, Combined_Key, code3, iso2, iso3, Admin2))
 uid
 ```
+
+Next we join the population data to the global data.
 
 ```{r}
 global <- global %>%
@@ -162,6 +221,12 @@ global
 
 # visualize data
 
+Next we will visualize the data.
+We will start with the us data.
+We will plot the number of cases and deaths over time.
+We create new columns "cases_per_million" and "deaths_per_million" to normalize the data by population.
+We are also grouping the us data by Province_State, Country_Region, and date.
+
 ```{r}
 us_by_state <- us %>%
   group_by(Province_State, Country_Region, date) %>%
@@ -172,6 +237,10 @@ us_by_state <- us %>%
 us_by_state
 ```
 
+Next we do something similar for the us totals.
+We take the us data by state which includes the new normalized metrics for cases per million and deaths per million, then group by Country_Region and date, and summarize the cases and deaths.
+Finally we select the columns we want to keep.
+
 ```{r}
 us_totals <- us_by_state %>%
   group_by(Country_Region, date) %>%
@@ -181,6 +250,11 @@ us_totals <- us_by_state %>%
   ungroup()
 us_totals
 ```
+
+Next we plot the us data.
+We plot the number of cases and deaths over time.
+We use a log scale for the y axis to better visualize the data.
+We can see that the number of cases and deaths are increasing over time and have a similar trend.
 
 ```{r}
 us_totals %>%
@@ -194,6 +268,11 @@ us_totals %>%
   theme(legend.position = "bottom", axis.text.x = element_text(angle = 90)) +
   labs(title = "COVID19 in US", y = NULL)
 ```
+
+Next we filter down to just one state Tennessee and plot the data.
+We can see that the number of cases and deaths are increasing over time and have a similar trend.
+We can also see the trends are similar to the us total data.
+This would be an indication that the state of Tennessee is following the same trend as the US as a whole and is not an outlier, either higher or lower in rates.
 
 ```{r}
 state <- "Tennessee"
@@ -210,6 +289,8 @@ us_by_state %>%
   labs(title = str_c("COVID19 in ", state), y = NULL)
 ```
 
+Here we check for the maximum date, cases, and deaths in the us data.
+
 ```{r}
 max(us_totals$date)
 max(us_totals$cases)
@@ -217,6 +298,10 @@ max(us_totals$deaths)
 ```
 
 # Analyze Data
+
+Next we will analyze the data.
+We will start by creating new features for new cases and new deaths.
+This will be the difference between the current and previous day.
 
 ```{r}
 us <- us %>%
@@ -227,17 +312,25 @@ us_totals <- us_totals %>%
   mutate(new_cases = cases - dplyr::lag(cases), new_deaths = deaths - dplyr::lag(deaths))
 ```
 
+We can validate below that the new cases and new deaths are being calculated correctly for the us state data by city.
+
 ```{r}
 us
 ```
+
+We can validate below that the new cases and new deaths are being calculated correctly for the us state totals.
 
 ```{r}
 us_by_state
 ```
 
+We can validate below that the new cases and new deaths are being calculated correctly for the us totals.
+
 ```{r}
 us_totals
 ```
+
+Next we will calculate the new cases and new deaths per thousand for the us totals.
 
 ```{r}
 us_totals %>%
@@ -251,10 +344,12 @@ us_totals %>%
   labs(title = "COVID19 in US", y = NULL)
 ```
 
+We do the same for us by state and filter for Tennessee.
+
 ```{r}
 state <- "Tennessee"
 us_by_state %>%
-  filter(Province_State == state) %>%
+  dplyr::filter(Province_State == state) %>%
   ggplot(aes(x = date, y = new_cases)) +
   geom_line(aes(color = "new_cases")) +
   geom_point(aes(color = "new_cases")) +
@@ -265,6 +360,8 @@ us_by_state %>%
   labs(title = str_c("COVID19 in", state), y = NULL)
 ```
 
+Next we will summarize the us state totals, and filter for only cases and population greater than 0.
+
 ```{r}
 us_state_totals <- us_by_state %>%
   group_by(Province_State) %>%
@@ -273,10 +370,14 @@ us_state_totals <- us_by_state %>%
   ungroup()
 ```
 
+Here we inspect the top 10 min deaths per thousand.
+
 ```{r}
 us_state_totals %>%
   slice_min(deaths_per_thousand, n = 10)
 ```
+
+Here we inspect the top 10 min deaths per thousand and select the columns we want to keep.
 
 ```{r}
 us_state_totals %>%
@@ -284,10 +385,14 @@ us_state_totals %>%
   select(deaths_per_thousand, cases_per_thousand, everything())
 ```
 
+Here we inspect the top 10 max deaths per thousand.
+
 ```{r}
 us_state_totals %>%
   slice_max(deaths_per_thousand, n = 10)
 ```
+
+Here we inspect the top 10 max deaths per thousand and select the columns we want to keep.
 
 ```{r}
 us_state_totals %>%
@@ -297,20 +402,33 @@ us_state_totals %>%
 
 # Model Data
 
+Next we will model the data.
+We will start by creating a linear regression model to predict deaths per thousand based on cases per thousand.
+We will use the us state totals data for this analysis.
+Lastly we will summarize the model's performance.
+
 ```{r}
 model <- lm(deaths_per_thousand ~ cases_per_thousand, data = us_state_totals)
 summary(model)
 ```
 
+Next we will predict the deaths per thousand based on the cases per thousand.
+
 ```{r}
 us_state_totals %>% mutate(pred = predict(model))
 ```
 
+Next we will add the predicted deaths per thousand to the us state totals data.
 
 ```{r}
 us_totals_w_pred <- us_state_totals %>% mutate(pred = predict(model))
 us_totals_w_pred
 ```
+
+Next we will plot the actual deaths per thousand vs the predicted deaths per thousand.
+We can see that the predicted deaths per thousand are close to the actual deaths per thousand.
+The red points are the predicted deaths per thousand and the blue points are the actual deaths per thousand.
+The blue dots do appear to have a linear relationship with the red dots.
 
 ```{r}
 us_totals_w_pred %>% ggplot() +
@@ -318,69 +436,46 @@ us_totals_w_pred %>% ggplot() +
   geom_point(aes(x = cases_per_thousand, y = pred), color = "red")
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Next we create another plot to visualize the model.
+
+```{r}
+us_totals_w_pred %>% ggplot() +
+  geom_point(aes(x = cases_per_thousand, y = deaths_per_thousand), color = "blue") +
+  geom_line(aes(x = cases_per_thousand, y = pred), color = "red")
+```
+
+Next we summarize the model's performance using RMSE and R2.
+
+```{r}
+us_totals_w_pred %>% summarize(rmse = sqrt(mean((deaths_per_thousand - pred)^2)), r2 = cor(deaths_per_thousand, pred)^2)
+```
+
+Above we can see that the RMSE is 0.8644585 and the R2 is 0.2651695.
+The RMSE is the square root of the mean of the squared differences between the actual and predicted deaths per thousand.
+The R2 is the square of the correlation between the actual and predicted deaths per thousand.
+The RMSE is a measure of the model's accuracy and the R2 is a measure of the model's goodness of fit.
+An RMSE of 0.8644585 means that the model's predictions are on average 0.8644585 deaths per thousand away from the actual deaths per thousand.
+An R2 of 0.2651695 means that the model explains 26.52% of the variance in the deaths per thousand.
+
+Here we plot the residuals which are the difference between the actual deaths per thousand and the predicted deaths per thousand.
+We can see that the residuals are randomly distributed and there is no clear pattern.
+This is a good indication that the model is a good fit for the data.
+
+```{r}
+us_totals_w_pred %>% ggplot() +
+  geom_point(aes(x = cases_per_thousand, y = deaths_per_thousand - pred), color = "blue")
+```
+
+# Conclusion
+
+In conclusion, we have analyzed the COVID 19 data from Johns Hopkins University.
+We have cleaned the data, visualized the data, created new features, and modeled the data.
+We then created a linear regression model to predict deaths per thousand based on cases per thousand.
+We evaluated the model using RMSE which is a measure of the model's accuracy and with R2 which is a measure of the model's goodness of fit.
+An RMSE of 0.8644585 means that the model's predictions are on average 0.8644585 deaths per thousand away from the actual deaths per thousand.
+An R2 of 0.2651695 means that the model explains 26.52% of the variance in the deaths per thousand.
+The residuals are also randomly distributed and there is no clear pattern, which is a good indication that the model is a good fit for the data.
+Some bias that could be present is in the data itself, as the data is from Johns Hopkins University and may not be representative of the entire population.
+We also do not have enough information to determine how positive cases and positive deaths are being reported, or under reported.
+Therefore, we should be cautious in interpreting the results and making predictions until we have more information.
+However, this model seems to be a good fit for the data is making accurate predictions for deaths per thousand based on cases per thousand in the US state totals data.
